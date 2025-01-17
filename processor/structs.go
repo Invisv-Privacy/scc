@@ -59,7 +59,7 @@ type LanguageFeature struct {
 // FileJobCallback is an interface that FileJobs can implement to get a per line callback with the line type
 type FileJobCallback interface {
 	// ProcessLine should return true to continue processing or false to stop further processing and return
-	ProcessLine(job *FileJob, currentLine int64, lineType LineType) bool
+	ProcessLine(job *FileJob, lineContents []byte, currentLine int64, lineType LineType) bool
 }
 
 // FileJob is a struct used to hold all of the results of processing internally before sent to the formatter

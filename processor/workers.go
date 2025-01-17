@@ -431,6 +431,7 @@ func CountStats(fileJob *FileJob) {
 
 	endPoint := int(fileJob.Bytes - 1)
 	currentState := SBlank
+	lineContents := []byte{}
 	endComments := [][]byte{}
 	endString := []byte{}
 
@@ -438,6 +439,7 @@ func CountStats(fileJob *FileJob) {
 	ignoreEscape := false
 
 	for index := checkBomSkip(fileJob); index < int(fileJob.Bytes); index++ {
+		startIndex := index
 		// Based on our current state determine if the state should change by checking
 		// what the character is. The below is very CPU bound so need to be careful if
 		// changing anything in here and profile/measure afterwards!
@@ -486,6 +488,12 @@ func CountStats(fileJob *FileJob) {
 			}
 		}
 
+		if startIndex == 0 {
+			lineContents = append(lineContents, fileJob.Content[0:index]...)
+		} else {
+			lineContents = append(lineContents, fileJob.Content[startIndex-1:index]...)
+		}
+
 		// We shouldn't normally need this, but unclosed strings or comments
 		// might leave the index past the end of the file when we reach this
 		// point.
@@ -515,7 +523,7 @@ func CountStats(fileJob *FileJob) {
 				fileJob.Code++
 				currentState = resetState(currentState)
 				if fileJob.Callback != nil {
-					if !fileJob.Callback.ProcessLine(fileJob, fileJob.Lines, LINE_CODE) {
+					if !fileJob.Callback.ProcessLine(fileJob, lineContents, fileJob.Lines, LINE_CODE) {
 						return
 					}
 				}
@@ -526,7 +534,7 @@ func CountStats(fileJob *FileJob) {
 				fileJob.Comment++
 				currentState = resetState(currentState)
 				if fileJob.Callback != nil {
-					if !fileJob.Callback.ProcessLine(fileJob, fileJob.Lines, LINE_COMMENT) {
+					if !fileJob.Callback.ProcessLine(fileJob, lineContents, fileJob.Lines, LINE_COMMENT) {
 						return
 					}
 				}
@@ -536,7 +544,7 @@ func CountStats(fileJob *FileJob) {
 			case SBlank:
 				fileJob.Blank++
 				if fileJob.Callback != nil {
-					if !fileJob.Callback.ProcessLine(fileJob, fileJob.Lines, LINE_BLANK) {
+					if !fileJob.Callback.ProcessLine(fileJob, lineContents, fileJob.Lines, LINE_BLANK) {
 						return
 					}
 				}
@@ -546,7 +554,7 @@ func CountStats(fileJob *FileJob) {
 			case SDocString:
 				fileJob.Comment++
 				if fileJob.Callback != nil {
-					if !fileJob.Callback.ProcessLine(fileJob, fileJob.Lines, LINE_COMMENT) {
+					if !fileJob.Callback.ProcessLine(fileJob, lineContents, fileJob.Lines, LINE_COMMENT) {
 						return
 					}
 				}
@@ -554,6 +562,8 @@ func CountStats(fileJob *FileJob) {
 					printTrace(fmt.Sprintf("%s line %d ended with state: %d: counted as comment", fileJob.Location, fileJob.Lines, currentState))
 				}
 			}
+
+			lineContents = nil
 		}
 	}
 
